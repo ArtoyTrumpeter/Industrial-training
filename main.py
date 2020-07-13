@@ -1,31 +1,31 @@
 import tensorflow as tf
-
-tf.enable_eager_execution(
-    config=None,
-    device_policy=None,
-    execution_mode=None
-)
-
 import numpy as np
 import os
 import time
 
-path_to_file = tf.keras.utils.get_file('shakespeare.txt', 'https://storage.googleapis.com/download.tensorflow.org/data/shakespeare.txt')
+choice = int(input('Select author: 1 - Dostoyevsky, 2 - Pelevin, 3 - Shakespeare: '))
+epochs = int(input('How many epochs of training would you like? '))
+num_generate = int(input('How many symbols would you like generated? '))
 
-# 1)READ THE DATA
-# Read, then decode for py2 compat.
+path_to_file = os.path.abspath(
+    [
+        './dostoyevsky.txt',
+        './pelevin.txt',
+        './shakespeare.txt'
+    ][choice - 1]
+)
+
 text = open(path_to_file, 'rb').read().decode(encoding='utf-8')
-# length of text is the number of characters in it
-print ('Length of text: {} characters'.format(len(text)))
-# Take a look at the first 250 characters in text
-print(text[:250])
-# The unique characters in the file
+
+# 1) LOAD TEXT
+print ('Total sample size: {} characters'.format(len(text)))
+print('Beginning:', text[:250])
 vocab = sorted(set(text))
 print ('{} unique characters'.format(len(vocab)))
 
-# 2)PROCESS THE TEXT
+# 2) PROCESS THE TEXT
 # Creating a mapping from unique characters to indices
-char2idx = {u:i for i, u in enumerate(vocab)}
+char2idx = {u: i for i, u in enumerate(vocab)}
 idx2char = np.array(vocab)
 
 text_as_int = np.array([char2idx[c] for c in text])
@@ -36,12 +36,17 @@ for char,_ in zip(char2idx, range(20)):
 print('  ...\n}')
 
 # Show how the first 13 characters from the text are mapped to integers
-print ('{} ---- characters mapped to int ---- > {}'.format(repr(text[:13]), text_as_int[:13]))
+print(
+    '{} ---- characters mapped to int ---- > {}'.format(
+        repr(text[:13]),
+        text_as_int[:13]
+    )
+)
 
 # 3)CREATE TRAINING EXAMPLES
 # The maximum length sentence we want for a single input in characters
 seq_length = 100
-examples_per_epoch = len(text)//(seq_length+1)
+examples_per_epoch = len(text) // (seq_length + 1)
 
 # Create training examples / targets
 char_dataset = tf.data.Dataset.from_tensor_slices(text_as_int)
@@ -50,7 +55,7 @@ for i in char_dataset.take(5):
     print(idx2char[i.numpy()])
 
 
-sequences = char_dataset.batch(seq_length+1, drop_remainder=True)
+sequences = char_dataset.batch(seq_length + 1, drop_remainder=True)
 
 for item in sequences.take(5):
     print(repr(''.join(idx2char[item.numpy()])))
@@ -133,8 +138,15 @@ def loss(labels, logits):
   return tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
 
 example_batch_loss  = loss(target_example_batch, example_batch_predictions)
-print("Prediction shape: ", example_batch_predictions.shape, " # (batch_size, sequence_length, vocab_size)")
-print("scalar_loss:      ", example_batch_loss.numpy().mean())
+print(
+    "Prediction shape: ",
+    example_batch_predictions.shape,
+    " # (batch_size, sequence_length, vocab_size)"
+)
+print(
+    "scalar_loss:      ",
+    example_batch_loss.numpy().mean()
+)
 
 model.compile(optimizer='adam', loss=loss)
 
@@ -149,8 +161,7 @@ checkpoint_callback=tf.keras.callbacks.ModelCheckpoint(
     save_weights_only=True)
 
 # 8)EXECUTE THE TRAINING
-EPOCHS=10
-history = model.fit(dataset, epochs=EPOCHS, callbacks=[checkpoint_callback])
+history = model.fit(dataset, epochs=epochs, callbacks=[checkpoint_callback])
 
 # 9)GENERATE TEXT
 tf.train.latest_checkpoint(checkpoint_dir)
@@ -166,9 +177,7 @@ model.summary()
 # 10)PREDICTION LOOP
 def generate_text(model, start_string):
     # Evaluation step (generating text using the learned model)
-    
-    # Number of characters to generate
-    num_generate = 1000
+    global num_generate
     
     # Converting our start string to numbers (vectorizing)
     input_eval = [char2idx[s] for s in start_string]
@@ -201,4 +210,13 @@ def generate_text(model, start_string):
     
     return (start_string + ''.join(text_generated))
 
-print(generate_text(model, start_string=u"Lady: "))
+print(
+    generate_text(
+        model,
+        start_string=[
+            'Митенька Карамазов',
+            'Василий Петрович',
+            'Citizen Caius:'
+        ][choice - 1]
+    )
+)
